@@ -15,32 +15,20 @@
  */
 package org.wso2.carbon.bpmn.extensions;
 
-import org.apache.axiom.om.OMElement;
-import org.apache.axiom.om.util.AXIOMUtil;
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.io.FileUtils;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.apache.http.util.EntityUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.wso2.carbon.bpmn.core.BPMNConstants;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import org.wso2.carbon.messaging.CarbonCallback;
+import org.wso2.carbon.messaging.Constants;
+import org.wso2.carbon.messaging.DefaultCarbonMessage;
+import org.wso2.carbon.messaging.MessageProcessorException;
+import org.wso2.carbon.transport.http.netty.config.SenderConfiguration;
+import org.wso2.carbon.transport.http.netty.sender.NettySender;
+
 import java.net.URI;
-import java.nio.charset.Charset;
-import java.util.Arrays;
-import java.util.Iterator;
-import javax.xml.namespace.QName;
-import javax.xml.stream.XMLStreamException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Utility class for invoking HTTP endpoints.
@@ -49,9 +37,9 @@ public class RESTInvoker {
 
     private static final Logger log = LoggerFactory.getLogger(RESTInvoker.class);
 
-    private final CloseableHttpClient client;
+    //private final CloseableHttpClient client;
 
-    public RESTInvoker() throws IOException, XMLStreamException {
+    /*public RESTInvoker() throws IOException, XMLStreamException {
 
         int maxTotal = 100;
         int maxTotalPerRoute = 100;
@@ -84,7 +72,7 @@ public class RESTInvoker {
             }
         }
 
-        PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager();
+        /*PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager();
         cm.setDefaultMaxPerRoute(maxTotalPerRoute);
         cm.setMaxTotal(maxTotal);
         client = HttpClients.custom().setConnectionManager(cm).build();
@@ -93,9 +81,14 @@ public class RESTInvoker {
             log.debug("BPMN REST client initialized with maxTotalConnection = " + maxTotal +
                     " and maxConnectionsPerRoute = " + maxTotalPerRoute);
         }
+
+    }*/
+
+    public RESTInvoker() {
+
     }
 
-    public String invokeGET(URI uri, String headerList[], String username, String password)
+    /*public String invokeGET(URI uri, String headerList[], String username, String password)
             throws Exception {
 
         HttpGet httpGet = null;
@@ -204,5 +197,45 @@ public class RESTInvoker {
             }
         }
         return output;
+    }*/
+
+    public String invokeRequest(URI uri, String headerList[], String username, String password,
+                                String inputContent) {
+
+        SenderConfiguration senderConfiguration = new SenderConfiguration("netty-gw");
+        NettySender nettySender = new NettySender(senderConfiguration);
+
+        DefaultCarbonMessage carbonMessage = new DefaultCarbonMessage();
+        carbonMessage.setProperty(Constants.HOST, uri.getHost());
+        carbonMessage.setProperty(Constants.PORT, uri.getPort());
+        carbonMessage.setProperty(Constants.TO, uri.getPath());
+        carbonMessage.setProperty(org.wso2.carbon.transport.http.netty.common.Constants.
+                IS_DISRUPTOR_ENABLE, "true");
+
+        if (inputContent != null) {
+            String payload = inputContent;
+            carbonMessage.setStringMessageBody(payload);
+        }
+
+        //byte[] errorMessageBytes = payload.getBytes(Charset.defaultCharset());
+
+        Map<String, String> transportHeaders = new HashMap();
+        transportHeaders.put(Constants.HTTP_CONNECTION, Constants.KEEP_ALIVE);
+        transportHeaders.put(Constants.HTTP_CONTENT_TYPE, Constants.TEXT_XML);
+        //transportHeaders.put(Constants.HTTP_CONTENT_LENGTH, (String.valueOf(errorMessageBytes.length)));
+        transportHeaders.put(Constants.TO, uri.getPath());
+        carbonMessage.setHeaders(transportHeaders);
+
+        CarbonCallback callback = new RESTCallback();
+
+        try {
+            nettySender.send(carbonMessage, callback);
+        } catch (MessageProcessorException e) {
+            log.error(e.toString());
+        }
+
+        return null;
     }
+
 }
+

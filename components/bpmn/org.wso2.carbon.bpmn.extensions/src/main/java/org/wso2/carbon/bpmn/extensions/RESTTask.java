@@ -15,15 +15,11 @@
  */
 package org.wso2.carbon.bpmn.extensions;
 
-import com.jayway.jsonpath.JsonPath;
 import org.activiti.engine.delegate.BpmnError;
 import org.activiti.engine.delegate.DelegateExecution;
 import org.activiti.engine.delegate.JavaDelegate;
 import org.activiti.engine.impl.el.FixedValue;
 import org.activiti.engine.impl.el.JuelExpression;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.XML;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -138,7 +134,7 @@ public class RESTTask implements JavaDelegate {
     public void execute(DelegateExecution execution) {
         if (log.isDebugEnabled()) {
             log.debug("Executing RESTInvokeTask " + method.getValue(execution).toString() + " - " +
-                      serviceURL.getValue(execution).toString());
+                    serviceURL.getValue(execution).toString());
         }
         if (restInvoker == null) {
             String errorMessage = "RestInvoker is not initialized. Failed to execute "
@@ -162,19 +158,19 @@ public class RESTTask implements JavaDelegate {
                 }
 
             } else if (serviceRef != null) {
-                String resourcePath = serviceRef.getValue(execution).toString();
-                String registryPath;
+                //String resourcePath = serviceRef.getValue(execution).toString();
+                /*String registryPath;
                 if (resourcePath.startsWith(GOVERNANCE_REGISTRY_PREFIX)) {
                     registryPath = resourcePath.substring(GOVERNANCE_REGISTRY_PREFIX.length());
                 } else if (resourcePath.startsWith(CONFIGURATION_REGISTRY_PREFIX)) {
                     registryPath = resourcePath.substring(CONFIGURATION_REGISTRY_PREFIX.length());
-                } else {
-                    String msg = "Registry type is not specified for service reference in " +
-                                 getTaskDetails(execution) +
-                                 ". serviceRef should begin with gov:/ or " +
-                                 "conf:/ to indicate the registry type.";
-                    throw new BPMNRESTException(msg);
-                }
+                }*/
+                String msg = "Registry type is not specified for service reference in " +
+                        getTaskDetails(execution) +
+                        ". serviceRef should begin with gov:/ or " +
+                        "conf:/ to indicate the registry type.";
+                throw new BPMNRESTException("***" + msg);
+
 //                Registry registry = CarbonContext.getThreadLocalCarbonContext()
 //                                                 .getRegistry(RegistryType.SYSTEM_CONFIGURATION);
 //
@@ -202,8 +198,8 @@ public class RESTTask implements JavaDelegate {
 
             } else {
                 String urlNotFoundErrorMsg = "Service URL is not provided for " +
-                                             getTaskDetails(execution) +
-                                             ". serviceURL or serviceRef must be provided.";
+                        getTaskDetails(execution) +
+                        ". serviceURL or serviceRef must be provided.";
                 throw new BPMNRESTException(urlNotFoundErrorMsg);
             }
 
@@ -212,15 +208,23 @@ public class RESTTask implements JavaDelegate {
                 headerList = headerContent.split(",");
             }
 
-            if (POST_METHOD.equals(method.getValue(execution).toString())) {
+            /*if (POST_METHOD.equals(method.getValue(execution).toString())) {
                 String inputContent = input.getValue(execution).toString();
                 output = restInvoker
                         .invokePOST(new URI(url), headerList, bUsername, bPassword, inputContent);
             } else {
                 output = restInvoker.invokeGET(new URI(url), headerList, bUsername, bPassword);
+            }*/
+
+            if (POST_METHOD.equals(method.getValue(execution).toString())) {
+                String inputContent = input.getValue(execution).toString();
+                restInvoker
+                        .invokeRequest(new URI(url), headerList, bUsername, bPassword, inputContent);
+            } else {
+                restInvoker.invokeRequest(new URI(url), headerList, bUsername, bPassword, null);
             }
 
-            if (outputVariable != null) {
+            /*if (outputVariable != null) {
                 String outVarName = outputVariable.getValue(execution).toString();
                 execution.setVariable(outVarName, output);
             } else {
@@ -242,11 +246,13 @@ public class RESTTask implements JavaDelegate {
                     Object value = JsonPath.read(output, jsonExpression);
                     execution.setVariable(varName, value);
                 }
-            }
+            }*/
+        } catch (RuntimeException err) {
+            log.error(err.toString());
         } catch (Exception e) {
             String errorMessage =
                     "Failed to execute " + method.getValue(execution).toString() + " " + url +
-                    " within task " + getTaskDetails(execution);
+                            " within task " + getTaskDetails(execution);
             log.error(errorMessage, e);
             throw new BpmnError(REST_INVOKE_ERROR, errorMessage);
         }
@@ -254,7 +260,7 @@ public class RESTTask implements JavaDelegate {
 
     private String getTaskDetails(DelegateExecution execution) {
         String task = execution.getCurrentActivityId() + ":" + execution.getCurrentActivityName() +
-                      " in process instance " + execution.getProcessInstanceId();
+                " in process instance " + execution.getProcessInstanceId();
         return task;
     }
 
